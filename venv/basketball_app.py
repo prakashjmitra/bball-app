@@ -19,9 +19,9 @@ st.markdown("""This applicaton provides simple webscraping of NBA player stats d
 st.sidebar.header("User Inputs")
 selected_year = st.sidebar.selectbox("Year",list(reversed(range(1950,2020))))
 
-@st.cache #If the data has already been loaded, this will catch the data and the load data dosen't have to run again
+@st.cache_data #If the data has already been loaded, this will catch the data and the load data dosen't have to run again
 def load_data(year):
-    url = f"https://www.basketball-reference.com/leagues/NBA_{year}_per_game.html"
+    url = "https://www.basketball-reference.com/leagues/NBA_" + str(year) + "_per_game.html"
     html = pd.read_html(url, header = 0)
     df = html[0]
     raw = df.drop(df[df.Age == "Age"].index)
@@ -29,17 +29,19 @@ def load_data(year):
     playerstats = raw.drop(["Rk"], axis = 1)
     return playerstats
 playerstats = load_data(selected_year)
+invalid_teams = [0,"2TM","3TM"]
+playerstats = playerstats[~playerstats["Team"].isin(invalid_teams)]
 
 
 #Team selection
-sorted_unique_team = sorted(playerstats.T)
+sorted_unique_team = sorted(playerstats["Team"].astype(str).unique())
 selected_team = st.sidebar.multiselect("Team", sorted_unique_team, sorted_unique_team) # Need to repeat values twice to include values
 
 #Position Selection
 sorted_unique_position = ["PG", "SG", "SF", "PF", "C"]
 selected_position = st.sidebar.multiselect("Position", sorted_unique_position, sorted_unique_position)
 
-df_selected_team = playerstats[(playerstats.T.isin(selected_team)) & (playerstats.Pos.isin(selected_position))]
+df_selected_team = playerstats[(playerstats["Team"].isin(selected_team)) & (playerstats["Pos"].isin(selected_position))]
 
 st.header("Player Stats of Selected Team(s)")
 st.write("Data Dimensions: " + str(df_selected_team.shape[0]) + "rows and " + str(df_selected_team.shape[1]) + "columns")
@@ -58,7 +60,7 @@ if st.button("Intercorrelation Heatmap"):
     df_selected_team.to_csv("output.csv",index = False)
     df = pd.read_csv("output.csv")
 
-    corr = df.corr()
+    corr = df.select_dtypes(include=['float64','int64']).corr()
     mask = np.zeros_like(corr)
     mask[np.triu_indices_from(mask)] = True
     with sns.axes_style("white"):
